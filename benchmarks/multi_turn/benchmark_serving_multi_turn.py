@@ -2,18 +2,20 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import argparse
 import asyncio
+import functools
 import json
 import logging
 import multiprocessing as mp
 import os
 import random
+import sys
 import time
 from collections import Counter, deque
 from datetime import datetime
 from enum import Enum
 from http import HTTPStatus
 from statistics import mean
-from typing import NamedTuple
+from typing import NamedTuple, Any
 
 import aiohttp  # type: ignore
 import numpy as np  # type: ignore
@@ -1268,6 +1270,17 @@ async def get_server_info(url: str) -> None:
                 logger.info(f"{Color.RED}Failed to get models{Color.RESET}")
 
 
+def return_code_handler(func: callable) -> callable:
+    @functools.wraps(func)
+    async def _async_wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logger.exception(f"{Color.RED}Error: {e}{Color.RESET}")
+            sys.exit(1)
+    return _async_wrapper
+
+@return_code_handler
 async def main() -> None:
     parser = argparse.ArgumentParser(
         prog="Benchmark serving with multi-turn conversations",
